@@ -128,7 +128,9 @@ type Backend interface {
 However, we still run into the issue that realistically, `GetObjectByField` (and similar functions) only return a single type.
 
 ```
-Well, this technically isn't true in Go, as everything technically implements the empty interface (interface{}) so. However I don't really like that approach as it doesn't let us check that our return types are allowed within our system
+Well, this technically isn't true in Go, as everything technically implements the empty interface (interface{}) so this allows
+us to return (or input) arbitrary types.
+However I don't really like that approach as it doesn't let us check that our return types are allowed within our system
 ```
 
 So, to get around this I propose we create a `RegisteredType` interface which is implemented by every data type we want returned through our API. So our `backend` package begins to look something like.
@@ -139,7 +141,8 @@ type Backend interface {
   
   // GetObjectByField lets us pass some kind of field
   // to our backend, and encapsulate the logic to do
-  // the query
+  // the query - Logic to check that inputs are allowed
+  // also captured here
   GetObjectByField(interface{}) (RegisteredType, error)
   
   // Do similar to get multiple objects, store them
