@@ -228,4 +228,21 @@ func RegisterType(r RegisteredType, name string) {
 
 Now we have all of the abstract tools we need to refer to this code from a higher level struct or function! Even better, this is now backend-agnostic, as we can refer to a `Backend` implementation, which may be for *MongoDB*, *Redis*, *Bolt* or any other storage/indexing system available! And because our higher level code will only ever refer to `Backend` and its attached functions/methods, we can extend, replace, and plug different backends (and data types) in and out as we need! This is a huge boon as now we could equally test things small scale with a simple databasing system (i.e. during **development**, and have the same higher level logic for our API apply when we implement our **production**-level backend systems, it's all hidden behind our abstraction (which can be slotted nicely into whatever variables and/or fields are appropriate at the higher level of the application)! Further, if we hand this code off to someone else, and they feel more comfortable maintaining a different backend system, they just have to write a new plugin! Finally, we've also reduced them amount of code we have to maintain significantly, and hopefully minimised our chances of ending up with the dreaded ***spaghetti code*** by reducing the amount of places in which our code links, and ensuring that once the high level API is finalised, the primary location for maintenance and/or changes is likely the `Backend` implementation specific to a system.
 
+As an example of usage, a backend would be registered by implementing `InitialiseBackend` and then calling `RegisterBackend` such as
+
+```go
+backend.RegisterBackend("mongo", initialiseBackend)
+```
+
+And then from the top level of the API, let's assume we have a config file which is loaded into a `Config` object, we can have a field where we set a backend type i.e. `Config.BackendType`, now we can just change a single config file to change which type of backend we are using! Assuming we called our global config object in the main loop `gConfig`, and it stored all the arguments for the `InitialiseBackend` function as `Config.BackendArgs` or similar we would have
+
+```go
+// Top level declaration - This doesn't implement a specific backend, it's just our
+// abstracted interface!
+var gBackend backend.Backend
+
+// ... Now in the main loop
+gBackend, err = backend.CreateBackend(gConfig.BackendType, gConfig.BackendArgs)
+```
+
 I hope this was worth a read, and explained a little bit about the how and why of abstraction, especially in the space of databasing/data handling systems.
