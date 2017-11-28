@@ -65,6 +65,8 @@ func (s *Server) getCatByRequest(ctx context.Context, r *SomeRequest) (*Cat, err
   if err = coll.Find(query).One(cat); err != nil {
     // Handle any errors
   }
+  return cat, nil
+}
 ```
 And we would have similar for say `getCatsByRequest`, `getDogByRequest` and `getDogsByRequest` and so on. Now, I skipped a lot of the code above, but including the construction of queries, this becomes a lot of code to put in a single function. For starters we might want to move our MongoDB session to live as a persistent object in a field of our `Server` type. Further, we could wrap our query construction, results retrieval etc. in a function which is called in every instance (taking our request object, `r` as a parameter), though this may not be straight forward and might contain a fair number of conditional statements (either as a `switch` or `if-else` block, depending on how things branch depending on query construction etc.). Whilst this is obviously not perfect, it does make it slightly easier to maintain! Now instead of having to change 4 places if we want to change logic which is common, we change one. Let's consider now if we add mapreduce jobs, this is even greater complexity! Finally, consider this: We have an awful lot of platform/tech. specific code in the main libraries of our application. What happens if we want (or more likely, need) to change this? We suddenly have a major rewrite on our hands! Further, if we re-write this code our new version is no longer compatible with our old version (unless we add more code... which quickly becomes unmaintainable).
 
