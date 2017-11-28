@@ -41,7 +41,7 @@ language in terms of readability and ease-of-learning. If you are unfamiliar wit
 the link [here](https://tour.golang.org/welcome/1) and covers the majority of its specifics, though the concepts discussed here are
 the important part, not the specifics of implementing them.
 
-I will likely also make reference to Google's [Protocol Buffers](https://developers.google.com/protocol-buffers/), which are an easy way of defining quick data formats which are extensible, though this applies to any sort of data.
+I will likely also make reference to Google's [Protocol Buffers](https://developers.google.com/protocol-buffers/) (perhaps indirectly), which are an easy way of defining quick data formats which are extensible, though this applies to any sort of data.
 
 ### Let's start with a problem
 So, let's say we're designing some API with a number of endpoints, which are handled by the functions (attached to some generic `Server` type) below (***NOTE:*** I have elected to follow the [gRPC](https://grpc.io/)-style method of defining services, as this could also be functions in some greater application called internally passing a pointer to an object):
