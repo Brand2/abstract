@@ -68,7 +68,161 @@ func (s *Server) getCatByRequest(ctx context.Context, r *SomeRequest) (*Cat, err
   return cat, nil
 }
 ```
-And we would have similar for say `getCatsByRequest`, `getDogByRequest` and `getDogsByRequest` and so on. Now, I skipped a lot of the code above, but including the construction of queries, this becomes a lot of code to put in a single function. For starters we might want to move our MongoDB session to live as a persistent object in a field of our `Server` type. Further, we could wrap our query construction, results retrieval etc. in a function which is called in every instance (taking our request object, `r` as a parameter), though this may not be straight forward and might contain a fair number of conditional statements (either as a `switch` or `if-else` block, depending on how things branch depending on query construction etc.). Whilst this is obviously not perfect, it does make it slightly easier to maintain! Now instead of having to change 4 places if we want to change logic which is common, we change one. Let's consider now if we add mapreduce jobs, this is even greater complexity! Finally, consider this: We have an awful lot of platform/tech. specific code in the main libraries of our application. What happens if we want (or more likely, need) to change this? We suddenly have a major rewrite on our hands! Further, if we re-write this code our new version is no longer compatible with our old version (unless we add more code... which quickly becomes unmaintainable).
+And we would have similar for say `getCatsByRequest` (returning an array of `Cat` objects), `getDogByRequest` and `getDogsByRequest` and so on. Now, I skipped a lot of the code above, but including the construction of queries, this becomes a lot of code to put in a single function. For starters we might want to move our MongoDB session to live as a persistent object in a field attached to our `Server` type. Further, we could wrap our query construction, results retrieval etc. in a function which is called in every instance (taking our request object, `r` as a parameter), though this may not be straight forward and might contain a fair number of conditional statements (either as a `switch` or `if-else` block, depending on how things branch depending on query construction etc.). Whilst this is obviously not perfect, it does make it slightly easier to maintain! Now instead of having to change 4 places if we want to change logic which is common, we change one. Let's consider now if we add mapreduce jobs, this is even greater complexity! Finally, consider this: We have an awful lot of platform/tech. specific code in the main libraries of our application. What happens if we want (or more likely, need) to change this? We suddenly have a major rewrite on our hands! Further, if we re-write this code our new version is no longer compatible with our old version (unless we add more code... which quickly becomes unmaintainable).
 
 ### So, let's abstract
+Now, we might find ourselves in a bit of a proverbial pickle here, as we find ourselves with code permeated with lines specific to a particualr kind of backend, when suddenly we realise we're going to have to change it! Or perhaps the data structure/types! So, let's consider a few cool tools we have up our sleeves as part of programming languages, in Go we can define an `interface`, so how about we define an `interface` which does a few things; let's call it `Backend` living within `package backend`.
 
+```go
+package backend
+
+// Backend represents a connection to a non-specific backend, any backend which
+// is to be used with our system must implement this interface
+type Backend interface {
+  // Connect initiates a "connection" to our backend
+  // - This may be a server connection, opening a file
+  // or any number of other options, it will return
+  // nil if successful or an error otherwise
+  Connect() error
+  
+  // Disconnect closes the connection previously established
+  Disconnect()
+}
+```
+
+So, we have a very basic interface defined, which let's us define multiple *types* of backend in an abstract way. As an example, let's assume we have a `Kennel` type which is an implementation of `Backend` (whoever wrote it liked dogs!) and a `Cattery` which is also an implementation of `Backend` (because, why not?) Now, the nature of interfaces means that if we have a function like
+
+```go
+func DoSomethingWithBackend(b *Backend) error {
+  // We do something here
+}
+```
+
+Then both a `*Kennel` **and** a `*Cattery` could equally be passed to this function! Equally, if we have a struct containing a number of fields, we might want to declare one a `Backend` like the following
+
+```go
+type Server struct {
+  /**
+   * Extra fields go here
+   */
+  BackendField backend.Backend
+}
+```
+
+Which means we can slot whatever backend we like into our front-facing server! Of course, this doesn't *quite* solve our problem yet, as we have no way of initialising or querying our backend meaningfully! So, let's start by expanding our earlier definition of the `Backend` interface a little to include a few methods to do our queries.
+
+```go
+type Backend interface {
+  // Functions as before up to this point...
+  
+  // GetObjectByField lets us pass some kind of field
+  // to our backend, and encapsulate the logic to do
+  // the query
+  GetObjectByField(interface{}) (ReturnType, error)
+  
+  // Do similar to get multiple objects, store them
+  // and so on
+}
+```
+
+However, we still run into the issue that realistically, `GetObjectByField` (and similar functions) only return a single type.
+
+```
+Well, this technically isn't true in Go, as everything technically implements the empty interface (interface{}) so. However I don't really like that approach as it doesn't let us check that our return types are allowed within our system
+```
+
+So, to get around this I propose we create a `RegisteredType` interface which is implemented by every data type we want returned through our API. So our `backend` package begins to look something like.
+
+```go
+type Backend interface {
+  // Functions as before up to this point...
+  
+  // GetObjectByField lets us pass some kind of field
+  // to our backend, and encapsulate the logic to do
+  // the query
+  GetObjectByField(interface{}) (RegisteredType, error)
+  
+  // Do similar to get multiple objects, store them
+  // and so on
+}
+
+type RegisteredType interface {
+  // Put functions here we would like to
+  // implement on all data types we would
+  // like to return from the backend
+}
+```
+
+***NOTE:*** I basically took this approach from the implementation of [`protobuf`](https://godoc.org/github.com/golang/protobuf/proto) (i.e. the `proto` package) for Go.
+
+However, we still don't have a way of registering these abstractions, or even initialising/creating them when we start our application, so let's rectify that. Adding again to our `backend` package.
+
+```go
+// InitialiseBackendSystem is implemented by each backend type seperately, and represents
+// a way of creating a valid backend, it should panic if this is not possible (i.e. the app
+// will not start)
+type InitialiseBackendSystem func(map[string]interface{}) (backend Backend, err error)
+
+// gBackends is a global map containing all of the possible backends currently registered
+// and thus available for use from the frontend
+var gBackends = make(map[string]InitialiseBackendSystem)
+
+// These two vars represent a registry for tracking all data types which our application may
+// deal with - Note the use of the reflect package to store the exact data type at runtime
+var (
+  RegTypes = make(map[string]reflect.Type)
+  RevRegTypes = make(map[reflect.Type]string)
+)
+
+// Finally a R/W mutex variable to ensure our maps are not written to concurrently
+var gBackendMutex sync.RWMutex
+
+// RegisterBackend registers our backend with a given name, in this case if a name is already
+// taken at the time of registration, that registration will be overwritten
+func RegisterBackend(name string, fn InitialiseBackendSystem) {
+  if fn == nil {
+    // No implementation of the initialising function, return
+    return
+  }
+  
+  gBackendMutex.Lock()
+  defer gBackendMutex.Unlock()
+  
+  gBackends[name] = fn
+}
+
+// CreateBackend creates a backend using an input name, generally used by code higher in our
+// application
+func CreateBackend(name string, args map[string]interface{}) (backend Backend, err error) {
+  gBackendMutex.RLock()
+  defer gBackendMutext.RUnlock()
+  
+  // Retrieve our initialisation function
+  fn := gBackends[name]
+  if fn == nil {
+    // No func found, raise an error
+    return nil, errors.New("Unable to create new backend; backend type unknown")
+  }
+  
+  // Let's run the initialisation function and return the results
+  return fn(args)
+}
+
+// RegisterType stores the data type as part of the system, it also serves as
+// a form of check to ensure the type implements RegisteredType and that no two
+// types have the same name
+func RegisterType(r RegisteredType, name string) {
+  if _, ok := RegTypes[name]; ok {
+    // You've already got something registered under this name, print that and return
+    log.Printf("A type is already registered with the name %s\n", name)
+    return
+  }
+  t := reflect.TypeOf(r)
+  RegTypes[name] = t
+  RevRegTypes[t] = name
+}
+```
+
+Now we have all of the abstract tools we need to refer to this code from a higher level struct or function! Even better, this is now backend-agnostic, as we can refer to a `Backend` implementation, which may be for *MongoDB*, *Redis*, *Bolt* or any other storage/indexing system available! And because our higher level code will only ever refer to `Backend` and its attached functions/methods, we can extend, replace, and plug different backends (and data types) in and out as we need! This is a huge boon as now we could equally test things small scale with a simple databasing system (i.e. during **development**, and have the same higher level logic for our API apply when we implement our **production**-level backend systems, it's all hidden behind our abstraction! Further, if we hand this code off to someone else, and they feel more comfortable maintaining a different backend system, they just have to write a new plugin! Finally, we've also reduced them amount of code we have to maintain significantly, and hopefully minimised our chances of ending up with the dreaded ***spaghetti code*** by reducing the amount of places in which our code links, and ensuring that once the high level API is finalised, the primary location for maintenance and/or changes is likely the `Backend` implementation specific to a system.
+
+I hope this was worth a read, and explained a little bit about the how and why of abstraction, especially in the space of databasing/data handling systems.
