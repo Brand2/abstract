@@ -128,7 +128,7 @@ type Backend interface {
 However, we still run into the issue that realistically, `GetObjectByField` (and similar functions) only return a single type.
 
 ```
-Well, this technically isn't true in Go, as everything technically implements the empty interface (interface{}) so this allows
+Well, this isn't strictly true in Go, as everything technically implements the empty interface (interface{}) so this allows
 us to return (or input) arbitrary types.
 However I don't really like that approach as it doesn't let us check that our return types are allowed within our system
 ```
