@@ -41,4 +41,4 @@ language in terms of readability and ease-of-learning. If you are unfamiliar wit
 the link [here](https://tour.golang.org/welcome/1) and covers the majority of its specifics, though the concepts discussed here are
 the important part, not the specifics of implementing them.
 
-
+I will likely also make reference to Google's [Protocol Buffers](https://developers.google.com/protocol-buffers/), which are an easy way of defining quick data formats which are extensible, though this applies to any sort of data.
