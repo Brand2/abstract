@@ -44,4 +44,26 @@ the important part, not the specifics of implementing them.
 I will likely also make reference to Google's [Protocol Buffers](https://developers.google.com/protocol-buffers/), which are an easy way of defining quick data formats which are extensible, though this applies to any sort of data.
 
 ### Let's start with a problem
-So, let's say we're designing some API 
+So, let's say we're designing some API with a number of endpoints, which are handled by the functions (attached to some generic `Server` type) below (***NOTE:*** I have elected to follow the [gRPC](https://grpc.io/)-style method of defining services, as this could also be functions in some greater application called internally passing a pointer to an object):
+
+```go
+func (s *Server) getCatByRequest(ctx context.Context, r *SomeRequest) (*Cat, error) {
+  // Assume we do nothing with ctx, SomeRequest is defined elsewhere, and we aim to
+  // return either a ptr to a Cat instance or an error
+  // 
+  // Let's start by assuming we're using a MongoDB server, accessed through the mgo
+  // package - Establish a session, access a database and a collection in there
+  session, err := mgo.Dial("someurl")
+  if err != nil {
+    // Handle error if you've been given one
+  }
+  // Let's set our output var cat AND our collection
+  cat := &Cat{}
+  coll := session.DB("somedb").C("cats")
+  // Here's where we would construct our query using parameters from r, but for brevity
+  // let's skip that... and define "query" as some constructed query using bson.M
+  if err = coll.Find(query).One(cat); err != nil {
+    // Handle any errors
+  }
+```
+And we would have similar for say `getCatsByRequest`, `getDogByRequest` and `getDogsByRequest` and so on. Now, I skipped a lot of the code above, but including the construction of queries, this becomes a lot of code to put in a single function. For starters we might want to move our MongoDB session to live as a persistent object in a field of our `Server` type. Further, we could wrap our query construction, results retrieval etc. in a function which is called in every instance (taking our request object, `r` as a parameter), though this may not be straight forward and might contain a fair number of conditional statements (either as a `switch` or `if-else` block, depending on how things branch depending on query construction etc.). Whilst this is obviously not perfect, it does make it slightly easier to maintain! Now instead of having to change 4 places if we want to change logic which is common, we change one. Let's consider now if we add mapreduce jobs, this is even greater complexity! Finally, consider this: We have an awful lot of platform/tech. specific code in the main libraries of our application. What happens if we want (or more likely, need) to change this? We suddenly have a major rewrite on our hands!
