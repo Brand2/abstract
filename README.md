@@ -33,7 +33,7 @@ aware that none of the techniques discussed here are particularly ground-breakin
 colleagues, and anyone else who might be tackling similar problems).
 
 In order to discuss this further, I will be utilising [Go](https://golang.org) a very popular programming language. These concepts however
-apply in many other languages (and infact would be even more powerful in languages with [generics](https://www.tutorialspoint.com/cplusplus/cpp_templates.htm)(such as C++, where we have function and class templates)
+apply in many other languages (and infact would be even more powerful in languages with [generics](https://www.tutorialspoint.com/cplusplus/cpp_templates.htm) (such as C++, where we have function and class templates)
 
 #### So, why Go?
 I had to tackle this problem in Go for a number of reasons recently, so it is fresh in my mind. However, I also consider Go a great
