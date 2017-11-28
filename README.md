@@ -33,7 +33,7 @@ aware that none of the techniques discussed here are particularly ground-breakin
 colleagues, and anyone else who might be tackling similar problems).
 
 In order to discuss this further, I will be utilising [Go](https://golang.org) a very popular programming language. These concepts however
-apply in many other languages (and infact would be even more powerful in languages with generics such as C/C++)
+apply in many other languages (and infact would be even more powerful in languages with [generics]( such as C/C++)
 
 #### So, why Go?
 I had to tackle this problem in Go for a number of reasons recently, so it is fresh in my mind. However, I also consider Go a great
@@ -42,3 +42,6 @@ the link [here](https://tour.golang.org/welcome/1) and covers the majority of it
 the important part, not the specifics of implementing them.
 
 I will likely also make reference to Google's [Protocol Buffers](https://developers.google.com/protocol-buffers/), which are an easy way of defining quick data formats which are extensible, though this applies to any sort of data.
+
+### Let's start with a problem
+So, let's say we're designing some API 
