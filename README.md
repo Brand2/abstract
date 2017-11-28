@@ -231,6 +231,8 @@ Now we have all of the abstract tools we need to refer to this code from a highe
 As an example of usage, a backend would be registered by implementing `InitialiseBackend` and then calling `RegisterBackend` such as
 
 ```go
+// Where initialiseBackend is the internal implementation of InitialiseBackend
+// for a specific Backend
 backend.RegisterBackend("mongo", initialiseBackend)
 ```
 
